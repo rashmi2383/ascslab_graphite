@@ -1,0 +1,50 @@
+#!/bin/bash -l
+
+# To submit this to the SCC to run:  
+#    log onto scc1 (or scc2 etc)
+#    Copy this file to your project directory
+#    make a directory to hold the output files created by the queue job
+#        cd /project/ascslab/... (wherever you like, maybe make a subdirectory for yourself)
+#        mkdir qsub_output
+#        cd qsub_output
+#        qsub /path/to/run_graphite_tests.qsub
+#        ...you should get a job number once it is accepted...
+
+# Queue time limit.  The default is 12 hours.  If you think your
+# job will be under 12 hours just use the default.  Here the
+# time is set to 12 hours to demonstrate how to do it.  Line beginning
+# with #$ are processed as though they are qsub command line flags.
+#$ -l h_rt=48:00:00
+# Send yourself an email when the job begins (b), ends (e), or is 
+# aborted by the scheduler (a). 
+#$ -m bea
+# This gives your job a name.  Always use a descriptive name, it's
+# very helpful when you have multiple jobs running.
+#$ -N apsp_test
+# Standard output and error output normally get written to different
+# files.  This flag combines them.  The files are written to whatever
+# directory you were in when you sent this to qsub.
+#$ -j y
+# Ask for a bunch of CPUs...make sure you ask for enough otherwise
+# the process reaper will kill your job.
+# 16 grabs an entire node, which is the best idea for doing benchmarking
+#$ -pe omp 16
+# Make sure that the specified number of cores are exactly landed
+#$ -l cpu_arch=sandybridge|ivybridge
+ 
+# Clear any modules loaded by default
+module purge
+
+# Load modules needed by Graphite
+module load python/2.7.11
+module load libdb/5.3.28
+module load /project/ascslab/simulations/graphite/3.0.11/modulefile.txt
+
+# Change to the Graphite directory
+cd /project/ascslab/simulations/graphite/3.0.11/install/mit-carbon-Graphite-1b4bb98/tests/benchmarks/apsp
+
+
+# Run all the tests.  The output will be written to a log file in the Graphite directory.
+# ./tools/run_bench_tests.sh
+make
+
