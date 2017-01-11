@@ -64,7 +64,7 @@ def main():
             for values in dicttemp[key]:
                 for text in values:
                     if (text.isdigit()) and int(text) != 0:
-                        dict1["L1-I Cache Misses"].append(int(text))
+                        dict1["L1-I Cache Misses"].append(int(text)*100)
         if key == "Cache Misses1":
             for values in dicttemp[key]:
                 for text in values:
@@ -124,7 +124,7 @@ def main():
     plt.ylim([0, max(df['L1-I Cache Misses'] + df['L1-D Cache Misses'] + df['L2 Cache Misses'])] )
 
     # Adding the legend and showing the plot
-    plt.legend(['L1-I Cache Misses', 'L1-D Cache Misses', 'L2 Cache Misses'], loc='upper left')
+    plt.legend(['L1-I Cache Misses (Scaled by 100)', 'L1-D Cache Misses', 'L2 Cache Misses'], loc='upper left')
     #plt.grid()
     plt.savefig('Cache Miss APSP')
 
