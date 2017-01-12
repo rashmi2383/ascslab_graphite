@@ -36,7 +36,7 @@ def draw_cache_miss_chart(dictdf, graph_algorithm, thread_count):
     ax.set_ylabel('Cache Miss Rate (In Percentage)')
 
     # Set the chart's title
-    ax.set_title('Cache Miss Rates'+' - '+'For CRONO Benchmark on Graphite'+' '+'(Graph Algorithm: '+graph_algorithm+') - '+'Run with '+thread_count+' threads')
+    ax.set_title('Cache Miss Rates'+' - '+'Graph Algorithm: '+graph_algorithm+' - '+'Run with '+thread_count+' threads')
 
     # Set the position of the x ticks
     ax.set_xticks([p + 1.5 * width for p in pos])
@@ -54,12 +54,14 @@ def draw_cache_miss_chart(dictdf, graph_algorithm, thread_count):
     plt.savefig('Cache Miss '+graph_algorithm)    
 
 
-def draw_network_latency_chart(dictdf2, graph_algorithm, thread_count):
+def draw_network_chart(dictdftemp, graph_algorithm, thread_count):
+    column_list = dictdftemp.keys()
+
     # data frame for Network Latency       
-    df1 = pd.DataFrame(dictdf2, columns = ['No_of_Threads', 'Network Latency']) 
+    df1 = pd.DataFrame(dictdftemp, columns = [column_list[0], column_list[1]]) 
 
     #Setting the positions and width for the bars
-    bar_l = [i+1 for i in range(len(df1['Network Latency']))] 
+    bar_l = [i+1 for i in range(len(df1[column_list[1]]))] 
     width = 0.5
 
     # positions of the x-axis ticks (center of the bars as bar labels)
@@ -69,28 +71,33 @@ def draw_network_latency_chart(dictdf2, graph_algorithm, thread_count):
     fig, ax = plt.subplots(figsize=(10,5))
 
     # Create bar
-    ax.bar(bar_l, df1['Network Latency'], width, alpha=0.5, color='b', label='Network Latency')
+    ax.bar(bar_l, df1[column_list[1]], width, alpha=0.5, color='b', label=column_list[1])
 
     # Set the position of the x ticks
-    plt.xticks(tick_pos, df1['No_of_Threads'])
+    plt.xticks(tick_pos, df1[column_list[0]])
 
     # Set the y axis label
-    ax.set_ylabel('Packet Latency (In Clock Cycles)')
+    if column_list[1] == 'Network Latency':
+        ax.set_ylabel('Average packet latency')
+    if column_list[1] == 'Throughput':
+        ax.set_ylabel('Bits sent per second')
 
     # Set the x axis label
     ax.set_xlabel('No. of Threads')
 
     # Set the chart's title
-    ax.set_title('Network Latency'+' - '+'For CRONO Benchmark on Graphite'+' '+'(Graph Algorithm: '+graph_algorithm+') - '+'Run with '+thread_count+' threads')
-    plt.savefig('Network Latency '+graph_algorithm)
+    ax.set_title(column_list[1]+' - '+'Graph Algorithm: '+graph_algorithm+' - '+'Run with '+thread_count+' threads')
+    plt.savefig(column_list[1]+' '+graph_algorithm)
 
 
                      
 def main():
     dict1, dicttemp, dictdf = defaultdict(list), defaultdict(list), defaultdict(list)
-    dicttemplatency, dictdf2 = defaultdict(list), defaultdict(list)
+    dicttemplatency, dict1tempbits, dictdf2, dictdf3 = defaultdict(list), defaultdict(list), defaultdict(list), defaultdict(list)
+    listtmp1, listtmp2 = [], []
     i = 0
     j = 0
+    k = 0
 
     # read command file in the result folder and extract the benchmark and command run details
     fileptr1 = "command"
@@ -143,19 +150,43 @@ def main():
                     if text == "Packet":
                         dicttemplatency["Packet Latency"+str(j)].append(words)
                         j += 1
+            # Store the total packets sent for each thread in the benchmark
+            if word == "Bits":
+                for text in words:
+                    if text == "Sent":  
+                        dict1tempbits["Total bits sent"+str(k)].append(words)
+                        k += 1
     
+    del dict1tempbits["Total bits sent0"]                   
     del dicttemplatency["Packet Latency0"]
     del dicttemplatency["Packet Latency1"]
     del dicttemplatency["Packet Latency3"]
-    counter_thread = int(thread_count)
-
+        
     # Store Average Packet Latency in the main dictionary
+    counter_thread = int(thread_count)
     for values in dicttemplatency["Packet Latency2"]:
         for text in values:
             if (if_float_value(text)) and float(text) != 0:
                 if counter_thread != 0:
                     dict1["Network Latency"].append(float(text))
                     counter_thread -= 1
+
+    # Store total bits sent Values in the main dictionary & calculate throughput
+    counter_thread = int(thread_count)
+    for values in dict1tempbits["Total bits sent1"]:
+        for text in values:
+            if (text.isdigit()):
+                if counter_thread != 0:
+                    dict1["Total bits sent"].append(int(text))
+                    counter_thread -= 1
+    for key in dict1:
+        if key=="Total bits sent" in dict1:
+            listtmp1 = dict1[key]
+        if key=="completion_time_threads" in dict1:
+            listtmp2 = dict1[key]
+    for i in range(0,len(listtmp1)):
+        dict1["Throughput"].append((float(listtmp1[i])/listtmp2[i]) * (10**9))
+
 
     # Store L1-I Cache, L1-D Cache & L2 Cache Miss Rates in the main dictionary            
     for key in dicttemp:
@@ -176,16 +207,18 @@ def main():
                         dict1["L2 Cache Misses"].append(float(text))
 
 
-    # Calculate the completion time for the benchmark and store it in main dictionary                  
+    # Calculate the completion time & no. of threads for the benchmark and store it in main dictionary                  
     completion_time = stop_time - start_time
     dict1["completion_time"].append(completion_time)
     for j in range(1, len(dict1["completion_time_threads"])+1):
         dict1["No_of_Threads"].append(j)
 
+    # generate the dictionary for data frame
     for key in dict1:
         if key=="No_of_Threads" in dict1:
             dictdf[key]=dict1[key]
             dictdf2[key]=dict1[key]
+            dictdf3[key]=dict1[key]
         if key=="L1-I Cache Misses" in dict1:
             dictdf[key]=dict1[key]
         if key=="L1-D Cache Misses" in dict1:
@@ -194,14 +227,18 @@ def main():
             dictdf[key]=dict1[key]
         if key=="Network Latency" in dict1:
             dictdf2[key]=dict1[key]
+        if key=="Throughput" in dict1:
+            dictdf3[key]=dict1[key]
+
 
     # Call the function to plot the bar chart for Cache Miss Rates
     draw_cache_miss_chart(dictdf, graph_algorithm, thread_count)
 
     # Call the function to plot the bar chart for Network Latency
-    draw_network_latency_chart(dictdf2, graph_algorithm, thread_count)
+    draw_network_chart(dictdf2, graph_algorithm, thread_count)
 
-
+    # Call the function to plot the bar chart for Network Throughput
+    draw_network_chart(dictdf3, graph_algorithm, thread_count)
 
  
 
